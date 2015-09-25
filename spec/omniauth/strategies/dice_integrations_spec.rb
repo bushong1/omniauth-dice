@@ -60,15 +60,17 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
     dice_options = {:model => MockDice}.merge(dice_options)
     old_app = self.app
     self.app = Rack::Builder.app do
+      # Dynamically set headers here based on the params in the before(:each) blog currently?
+      # If we pass them in as defaults args...? Should get ignored by the oa-dice stuff, or we just rip it out
       use Rack::Session::Cookie, :secret => '1337geeks'
       use RackSessionAccess::Middleware
       use OmniAuth::Strategies::Dice, dice_options
       run lambda{|env| [404, {'env' => env}, ["HELLO!"]]}
     end
-    if block_given?
-      yield
-      self.app = old_app
-    end
+#    if block_given?
+#      yield
+#      self.app = old_app
+#    end
     self.app
   end
 
@@ -80,19 +82,28 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
     set_app!(defaults)
   end
 
+  # Clear session headers
+  before(:each) do
+    header 'Ssl-Client-Cert', nil
+    header 'Ssl-Client-S-Dn', nil
+    header 'Ssl-Client-I-Dn', nil
+  end
+
   describe "use_callback_url" do
     it "should use the callback_url method instead of callback_path when specified" do
       callback_url_opts = {
-        cas_server: 'http://example.org',
-        authentication_path: '/dn',
+        cas_server: 'POOOOOOOOOOOOOP_________http://example.org',
+        authentication_path: '/dnlakjflakjeflkaef',
         use_callback_url: true
       }
-      self.app = Rack::Builder.app do
-        use Rack::Session::Cookie, :secret => '1337geeks'
-        use RackSessionAccess::Middleware
-        use OmniAuth::Strategies::Dice, callback_url_opts
-        run lambda{|env| [404, {'env' => env}, ["HELLO!"]]}
-      end
+      #self.app = Rack::Builder.app do
+      #  use Rack::Session::Cookie, :secret => '1337geeks'
+      #  use RackSessionAccess::Middleware
+      #  use OmniAuth::Strategies::Dice, callback_url_opts
+      #  run lambda{|env| [404, {'env' => env}, ["HELLO!"]]}
+      #end
+
+      set_app!(callback_url_opts)
       header 'Ssl-Client-Cert', user_cert
       get '/auth/dice'
       expect(last_request.env['HTTP_SSL_CLIENT_CERT']).to eq(user_cert)
@@ -116,8 +127,10 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
         use OmniAuth::Strategies::Dice, callback_url_opts
         run lambda{|env| [404, {'env' => env}, ["HELLO!"]]}
       end
+
       header 'Ssl-Client-Cert', user_cert
       get '/auth/dice'
+
       expect(last_request.env['HTTP_SSL_CLIENT_CERT']).to eq(user_cert)
       expect(last_request.url).to eq('http://example.org/auth/dice')
       expect(last_request.env['rack.session']['omniauth.params']['user_dn']).to eq(user_dn.to_s)
@@ -128,7 +141,7 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
 
   describe '#request_phase' do
     it 'should fail without a client DN' do
-      expect { get '/auth/dice' }.to raise_error(OmniAuth::Error, 'You need a valid DN to authenticate.')
+      expect { get '/auth/dice' }.to raise_error('You need a valid DN to authenticate.')
     end
 
     it "should set the client & issuer's DN (from certificate)" do

@@ -75,10 +75,10 @@ module OmniAuth
       def request_phase
         validate_required_params
         subject_dn = get_dn_by_type('subject')
-        return fail!('You need a valid DN to authenticate.') unless subject_dn
+        fail 'You need a valid DN to authenticate.' unless subject_dn
         user_dn = format_dn(subject_dn)
         log :debug, "Formatted user_dn:   #{user_dn}"
-        return fail!('You need a valid DN to authenticate.') unless user_dn
+        fail 'You need a valid DN to authenticate.' unless user_dn
         set_session_dn(user_dn, 'subject')
         issuer_dn = get_dn_by_type('issuer')
         issuer_dn = format_dn(issuer_dn) if issuer_dn
@@ -131,12 +131,23 @@ module OmniAuth
       end
 
       def redirect_for_callback
+        ap "*"*80
+        ap "#redirect_for_callback"
+        ap "options: "
+        ap options
+        ap "options.custom_callback_url"
+        ap options.custom_callback_url
+        ap "options.use_callback_url"
+        ap options.use_callback_url
         if options.custom_callback_url
+          ap 1
           redirect options.custom_callback_url
         else
           if options.use_callback_url == true
+            ap 2
             redirect callback_url
           else
+            ap 3
             redirect callback_path
           end
         end
@@ -163,7 +174,7 @@ module OmniAuth
         end
         if !response || response.status.to_i >= 400
           log :error, response.inspect
-          return fail!(:invalid_credentials)
+          fail :invalid_credentials
         end
 
         response
